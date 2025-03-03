@@ -77,9 +77,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $observaciones = isset($_POST['observaciones']) ? sanitize($_POST['observaciones']) : '';
     
     // Validar campos
-    if ($monto === null && empty($observaciones)) {
+    if (empty($monto) && empty($observaciones)) {
         $error = "Debe ingresar un monto o una observación";
-    } elseif ($monto > 0 && empty($estado)) {
+    } elseif (!empty($monto) && empty($estado)) {
         $error = "Debe seleccionar un estado de entrega si ingresa un monto";
     } else {
         // Registrar el ingreso o la observación
