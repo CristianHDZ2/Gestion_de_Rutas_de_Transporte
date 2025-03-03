@@ -44,34 +44,54 @@ function generarCalendarioTrabajo($rutaId, $fechaInicio, $fechaInicioRefuerzo) {
     
     // Convertir fechas a objetos DateTime
     $fechaActual = new DateTime($fechaInicio);
+    $fechaRefuerzo = new DateTime($fechaInicioRefuerzo);
     
-    // Patrón de cronología basado en el documento "CRONOLOGIA DE TRABAJO.docx"
-    // Definimos el patrón completo para 10 días que se repetirá (excluyendo domingos)
-    // T = Trabajo, D1-D4 = Descanso (con contador), R5 = Refuerzo (Descanso 5)
-    $patron = [
-        'T' => ['Trabajo', 0],
-        'D1' => ['Descanso', 1],
-        'D2' => ['Descanso', 2],
-        'D3' => ['Descanso', 3],
-        'D4' => ['Descanso', 4],
-        'R5' => ['Refuerzo', 5]
+    // Crear una matriz con la cronología exacta de trabajo
+    // La matriz contiene [tipo, contador]
+    // Utilizaremos la cronología del documento como base
+    $cronologia = [
+        // Día 1-2: Trabajo
+        ['Trabajo', 0], ['Trabajo', 0],
+        // Día 3-4: Descanso
+        ['Descanso', 3], ['Descanso', 4],
+        // Día 5-7: Trabajo
+        ['Trabajo', 0], ['Trabajo', 0], ['Trabajo', 0],
+        // Día 8: Refuerzo
+        ['Refuerzo', 5],
+        // Día 9: Descanso
+        ['Descanso', 1],
+        // Día 10-11: Trabajo
+        ['Trabajo', 0], ['Trabajo', 0],
+        // Día 12: Descanso
+        ['Descanso', 2],
+        // Día 13: No se cuenta (domingo)
+        ['Trabajo', 0],
+        // Día 14: Descanso
+        ['Descanso', 3],
+        // Día 15-16: Trabajo
+        ['Trabajo', 0], ['Trabajo', 0],
+        // Día 17: Descanso
+        ['Descanso', 4],
+        // Día 18: Refuerzo
+        ['Refuerzo', 5],
+        // Día 19-20: Trabajo
+        ['Trabajo', 0], ['Trabajo', 0],
+        // Día 21: Descanso
+        ['Descanso', 1],
+        // Día 22: Descanso
+        ['Descanso', 2],
+        // Día 23-24: Trabajo
+        ['Trabajo', 0], ['Trabajo', 0],
+        // Día 25-26: Descanso
+        ['Descanso', 3], ['Descanso', 4],
+        // Día 27-28: Trabajo
+        ['Trabajo', 0], ['Trabajo', 0],
+        // Día 29-30: Descanso
+        ['Refuerzo', 5], ['Descanso', 1]
     ];
     
-    // Secuencia de días según la cronología (excluyendo domingos)
-    $secuencia = [
-        'T', 'T', 'D1', 'D2', 'D3', 'D4', 'R5', 'D1', 'T', 'T',   // Primeros 10 días
-        'D1', 'D2', 'D3', 'D4', 'R5', 'T', 'T', 'D1', 'D2', 'D3'  // Siguientes 10 días 
-    ];
-    
-    // Generamos la secuencia completa repitiendo el patrón
-    $secuenciaCompleta = [];
-    for ($i = 0; $i < 30; $i++) { // Repetimos el patrón para cubrir los 365 días
-        $secuenciaCompleta = array_merge($secuenciaCompleta, $secuencia);
-    }
-    
-    // Encontrar el día de la semana de inicio para saber dónde comenzar en la secuencia
-    $diaSemanaInicio = (int)$fechaActual->format('w'); // 0 (domingo) a 6 (sábado)
-    $posicionSecuencia = 0; // Comenzamos desde el principio de la secuencia
+    // Ajustar índice de inicio basado en la fecha de inicio
+    $indiceCronologia = 0;
     
     // Preparar la consulta de inserción
     $insertQuery = "INSERT INTO dias_trabajo (ruta_id, fecha, tipo, contador_ciclo) VALUES (?, ?, ?, ?)";
@@ -84,35 +104,21 @@ function generarCalendarioTrabajo($rutaId, $fechaInicio, $fechaInicioRefuerzo) {
         $fechaStr = $fechaActual->format('Y-m-d');
         $diaSemana = (int)$fechaActual->format('w'); // 0 (domingo) a 6 (sábado)
         
-        // Para domingos, seguimos la misma cronología pero no contamos en la numeración
-        if ($diaSemana === 0) {
-            // Obtenemos el tipo del día anterior
-            $diaAnterior = (clone $fechaActual)->modify('-1 day');
-            $diaSemanaAnterior = (int)$diaAnterior->format('w');
-            
-            // Si el día anterior era sábado, usamos su mismo tipo (sin incrementar secuencia)
-            if ($diaSemanaAnterior === 6) {
-                $codigoActual = $secuenciaCompleta[$posicionSecuencia];
-                $tipo = $patron[$codigoActual][0];
-                $contador = 0; // Los domingos no se cuentan en la numeración
-            } else {
-                // Si no, seguimos la secuencia normal
-                $codigoActual = $secuenciaCompleta[$posicionSecuencia];
-                $tipo = $patron[$codigoActual][0];
-                $contador = 0; // Los domingos no se cuentan en la numeración
-            }
+        // Obtener el tipo y contador de la cronología
+        $tipo = $cronologia[$indiceCronologia % count($cronologia)][0];
+        $contador = $cronologia[$indiceCronologia % count($cronologia)][1];
+        
+        // Manejar domingos (siempre son trabajo, pero no se cuentan en numeración)
+        if ($diaSemana === 0) { // Domingo
+            $tipo = 'Trabajo';
+            $contador = 0;
+            // No avanzamos en la cronología para los domingos
         } else {
-            // Días normales (no domingos)
-            $codigoActual = $secuenciaCompleta[$posicionSecuencia];
-            $tipo = $patron[$codigoActual][0];
-            $contador = $patron[$codigoActual][1];
-            
-            // Avanzar en la secuencia solo para días que no son domingo
-            $posicionSecuencia = ($posicionSecuencia + 1) % count($secuenciaCompleta);
+            // Avanzar el índice solo para días que no son domingo
+            $indiceCronologia++;
         }
         
-        // Si estamos antes de la fecha de inicio de refuerzo y el tipo es refuerzo, cambiamos a trabajo
-        $fechaRefuerzo = new DateTime($fechaInicioRefuerzo);
+        // Ajustar refuerzos antes de la fecha de inicio de refuerzo
         if ($fechaActual < $fechaRefuerzo && $tipo === 'Refuerzo') {
             $tipo = 'Trabajo';
             $contador = 0;
@@ -120,7 +126,9 @@ function generarCalendarioTrabajo($rutaId, $fechaInicio, $fechaInicioRefuerzo) {
         
         // Insertar en la base de datos
         mysqli_stmt_bind_param($insertStmt, "issi", $rutaId, $fechaStr, $tipo, $contador);
-        mysqli_stmt_execute($insertStmt);
+        if (!mysqli_stmt_execute($insertStmt)) {
+            error_log("Error insertando día: " . mysqli_error($conn));
+        }
         
         // Avanzar al siguiente día
         $fechaActual->modify('+1 day');
@@ -182,29 +190,23 @@ function registrarIngreso($diaId, $monto, $estadoEntrega, $observaciones) {
             return [false, "No se puede registrar ingreso en un día de descanso"];
         }
         
-        // Para días de trabajo o refuerzo, podemos registrar ingreso o solo observaciones
+        // Para días de trabajo o refuerzo
         if ($monto <= 0 && !empty($observaciones)) {
-            // Si no hay monto pero hay observaciones, solo registramos observaciones
-            $updateQuery = "UPDATE dias_trabajo SET observaciones = ? WHERE id = ?";
+            // Si solo hay observaciones sin monto
+            $updateQuery = "UPDATE dias_trabajo SET monto = NULL, estado_entrega = NULL, observaciones = ? WHERE id = ?";
             $updateStmt = mysqli_prepare($conn, $updateQuery);
             mysqli_stmt_bind_param($updateStmt, "si", $observaciones, $diaId);
-            
-            if (mysqli_stmt_execute($updateStmt)) {
-                return [true, "Observación registrada correctamente"];
-            } else {
-                return [false, "Error al registrar la observación: " . mysqli_error($conn)];
-            }
         } else {
-            // Actualizar el registro con monto, estado y observaciones
+            // Si hay monto y estado
             $updateQuery = "UPDATE dias_trabajo SET monto = ?, estado_entrega = ?, observaciones = ? WHERE id = ?";
             $updateStmt = mysqli_prepare($conn, $updateQuery);
             mysqli_stmt_bind_param($updateStmt, "dssi", $monto, $estadoEntrega, $observaciones, $diaId);
-            
-            if (mysqli_stmt_execute($updateStmt)) {
-                return [true, "Ingreso registrado correctamente"];
-            } else {
-                return [false, "Error al registrar el ingreso: " . mysqli_error($conn)];
-            }
+        }
+        
+        if (mysqli_stmt_execute($updateStmt)) {
+            return [true, "Ingreso registrado correctamente"];
+        } else {
+            return [false, "Error al registrar el ingreso: " . mysqli_error($conn)];
         }
     } else {
         return [false, "El día especificado no existe"];

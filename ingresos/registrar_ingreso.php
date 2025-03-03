@@ -70,17 +70,17 @@ if ($diaId == 0) {
         exit;
     }
     
-  // Procesar el formulario de registro de ingreso
+// Procesar el formulario de registro de ingreso
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $monto = isset($_POST['monto']) ? floatval($_POST['monto']) : 0;
-    $estado = sanitize($_POST['estado_entrega']);
-    $observaciones = sanitize($_POST['observaciones']);
+    $monto = isset($_POST['monto']) && !empty($_POST['monto']) ? floatval($_POST['monto']) : null;
+    $estado = isset($_POST['estado_entrega']) ? sanitize($_POST['estado_entrega']) : null;
+    $observaciones = isset($_POST['observaciones']) ? sanitize($_POST['observaciones']) : '';
     
     // Validar campos
-    if ($monto <= 0 && empty($observaciones)) {
+    if ($monto === null && empty($observaciones)) {
         $error = "Debe ingresar un monto o una observación";
     } elseif ($monto > 0 && empty($estado)) {
-        $error = "Debe seleccionar un estado de entrega";
+        $error = "Debe seleccionar un estado de entrega si ingresa un monto";
     } else {
         // Registrar el ingreso o la observación
         list($success, $message) = registrarIngreso($diaId, $monto, $estado, $observaciones);
@@ -294,34 +294,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <input type="hidden" name="tipo_dia" id="tipo_dia" value="<?php echo $row['tipo']; ?>">
                 
                 <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="monto" class="form-label">Monto ($) <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
-                            <input type="number" class="form-control" id="monto" name="monto" step="0.01" min="0.01" value="<?php echo $row['monto'] ? $row['monto'] : ''; ?>" required>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6 mb-3">
-    <label for="estado_entrega" class="form-label">Estado</label>
-    <div class="input-group">
-        <span class="input-group-text"><i class="bi bi-check-circle"></i></span>
-        <select class="form-select" id="estado_entrega" name="estado_entrega">
-            <option value="">Seleccione un estado</option>
-            <option value="Pendiente" <?php echo ($row['estado_entrega'] == 'Pendiente') ? 'selected' : ''; ?>>Pendiente</option>
-            <option value="Recibido" <?php echo ($row['estado_entrega'] == 'Recibido') ? 'selected' : ''; ?>>Recibido</option>
-        </select>
+    <div class="col-md-6 mb-3">
+        <label for="monto" class="form-label">Monto ($)</label>
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+            <input type="number" class="form-control" id="monto" name="monto" step="0.01" min="0.01" value="<?php echo $row['monto'] ? $row['monto'] : ''; ?>">
+        </div>
+        <small class="form-text text-muted">Deje en blanco si no hubo ingreso</small>
     </div>
-    <small class="form-text text-muted">Requerido solo si ingresa un monto</small>
+    
+    <div class="col-md-6 mb-3">
+        <label for="estado_entrega" class="form-label">Estado</label>
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-check-circle"></i></span>
+            <select class="form-select" id="estado_entrega" name="estado_entrega">
+                <option value="">Seleccione un estado</option>
+                <option value="Pendiente" <?php echo ($row['estado_entrega'] == 'Pendiente') ? 'selected' : ''; ?>>Pendiente</option>
+                <option value="Recibido" <?php echo ($row['estado_entrega'] == 'Recibido') ? 'selected' : ''; ?>>Recibido</option>
+            </select>
+        </div>
+        <small class="form-text text-muted">Requerido solo si ingresa un monto</small>
+    </div>
 </div>
-                
-                <div class="mb-3">
-                    <label for="observaciones" class="form-label">Observaciones</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-card-text"></i></span>
-                        <textarea class="form-control" id="observaciones" name="observaciones" rows="3"><?php echo htmlspecialchars($row['observaciones'] ?? ''); ?></textarea>
-                    </div>
-                </div>
+
+<div class="mb-3">
+    <label for="observaciones" class="form-label">Observaciones</label>
+    <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-card-text"></i></span>
+        <textarea class="form-control" id="observaciones" name="observaciones" rows="3" placeholder="Ingrese observaciones o razón por la que no se trabajó"><?php echo htmlspecialchars($row['observaciones'] ?? ''); ?></textarea>
+    </div>
+</div>
                 
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-primary">
