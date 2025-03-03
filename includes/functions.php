@@ -42,121 +42,140 @@ function generarCalendarioTrabajo($rutaId, $fechaInicio, $fechaInicioRefuerzo) {
         return false;
     }
     
-    // Usar la cronología exacta del documento CRONOLOGIA DE TRABAJO
-    // Para el mes de marzo 2025
-    // Formato: [día, mes, año, tipo, contador]
-    $cronologiaBase = [
-        [1, 3, 2025, 'Refuerzo', 5], // Sábado 1: Refuerzo (Descanso) (5)
-        [2, 3, 2025, 'Descanso', 0], // Domingo 2: Descanso (no se cuenta)
-        [3, 3, 2025, 'Descanso', 2], // Lunes 3: Descanso (2)
-        [4, 3, 2025, 'Trabajo', 0],  // Martes 4: Trabajo
-        [5, 3, 2025, 'Trabajo', 0],  // Miércoles 5: Trabajo
-        [6, 3, 2025, 'Descanso', 3], // Jueves 6: Descanso (3)
-        [7, 3, 2025, 'Descanso', 4], // Viernes 7: Descanso (4)
-        [8, 3, 2025, 'Trabajo', 0],  // Sábado 8: Trabajo
-        [9, 3, 2025, 'Trabajo', 0],  // Domingo 9: Trabajo (no se cuenta)
-        [10, 3, 2025, 'Trabajo', 0], // Lunes 10: Trabajo
-        [11, 3, 2025, 'Refuerzo', 5], // Martes 11: Refuerzo (Descanso) (5)
-        [12, 3, 2025, 'Descanso', 1], // Miércoles 12: Descanso (1)
-        [13, 3, 2025, 'Trabajo', 0], // Jueves 13: Trabajo
-        [14, 3, 2025, 'Trabajo', 0], // Viernes 14: Trabajo
-        [15, 3, 2025, 'Descanso', 2], // Sábado 15: Descanso (2)
-        [16, 3, 2025, 'Descanso', 0], // Domingo 16: Descanso (no se cuenta)
-        [17, 3, 2025, 'Descanso', 3], // Lunes 17: Descanso (3)
-        [18, 3, 2025, 'Trabajo', 0], // Martes 18: Trabajo
-        [19, 3, 2025, 'Trabajo', 0], // Miércoles 19: Trabajo
-        [20, 3, 2025, 'Descanso', 4], // Jueves 20: Descanso (4)
-        [21, 3, 2025, 'Refuerzo', 5], // Viernes 21: Refuerzo (Descanso) (5)
-        [22, 3, 2025, 'Trabajo', 0], // Sábado 22: Trabajo
-        [23, 3, 2025, 'Trabajo', 0], // Domingo 23: Trabajo (no se cuenta)
-        [24, 3, 2025, 'Trabajo', 0], // Lunes 24: Trabajo
-        [25, 3, 2025, 'Descanso', 1], // Martes 25: Descanso (1)
-        [26, 3, 2025, 'Descanso', 2], // Miércoles 26: Descanso (2)
-        [27, 3, 2025, 'Trabajo', 0], // Jueves 27: Trabajo
-        [28, 3, 2025, 'Trabajo', 0], // Viernes 28: Trabajo
-        [29, 3, 2025, 'Descanso', 3], // Sábado 29: Descanso (3)
-        [30, 3, 2025, 'Descanso', 0], // Domingo 30: Descanso (no se cuenta)
-        [31, 3, 2025, 'Descanso', 4], // Lunes 31: Descanso (4)
-        // Abril 2025
-        [1, 4, 2025, 'Refuerzo', 5], // Martes 1: Refuerzo (Descanso) (5)
-        [2, 4, 2025, 'Descanso', 1], // Miércoles 2: Descanso (1)
-        [3, 4, 2025, 'Trabajo', 0], // Jueves 3: Trabajo
-        [4, 4, 2025, 'Trabajo', 0], // Viernes 4: Trabajo
-        [5, 4, 2025, 'Descanso', 2], // Sábado 5: Descanso (2)
-        [6, 4, 2025, 'Descanso', 0], // Domingo 6: Descanso (no se cuenta)
-        [7, 4, 2025, 'Descanso', 3], // Lunes 7: Descanso (3)
-        [8, 4, 2025, 'Trabajo', 0], // Martes 8: Trabajo
-        [9, 4, 2025, 'Trabajo', 0], // Miércoles 9: Trabajo
-        [10, 4, 2025, 'Descanso', 4], // Jueves 10: Descanso (4)
-        [11, 4, 2025, 'Refuerzo', 5], // Viernes 11: Refuerzo (Descanso) (5)
-        [12, 4, 2025, 'Trabajo', 0], // Sábado 12: Trabajo
-        [13, 4, 2025, 'Descanso', 0], // Domingo 13: Descanso (no se cuenta)
+    // Inicializar la fecha de inicio
+    $fechaActual = new DateTime($fechaInicio);
+    
+    // Convertir fecha de inicio de refuerzo a objeto DateTime
+    $fechaRefuerzo = new DateTime($fechaInicioRefuerzo);
+    
+    // Obtener el día de la semana de la fecha de inicio (1=lunes, ..., 7=domingo)
+    $diaSemana = (int)$fechaActual->format('N');
+    
+    // Definir los grupos de días
+    // 1. Martes/Miércoles: días 2, 3
+    // 2. Jueves/Viernes: días 4, 5
+    // 3. Sábado/Domingo/Lunes: días 6, 7, 1
+    
+    // Determinar en qué grupo está el día de inicio para establecer el patrón inicial
+    $grupoInicial = 0;
+    if ($diaSemana == 2 || $diaSemana == 3) {
+        $grupoInicial = 1; // Martes o Miércoles
+    } else if ($diaSemana == 4 || $diaSemana == 5) {
+        $grupoInicial = 2; // Jueves o Viernes
+    } else {
+        $grupoInicial = 3; // Sábado, Domingo o Lunes
+    }
+    
+    // Establecer el estado inicial para cada grupo
+    // El grupo del día inicial siempre es trabajo
+    // Dependiendo del grupo inicial, establecemos los estados de los otros grupos
+    $estadoGrupos = [
+        1 => false, // Martes/Miércoles 
+        2 => false, // Jueves/Viernes
+        3 => false  // Sábado/Domingo/Lunes
     ];
     
-    // Fecha de inicio de la cronología base (1 de marzo de 2025)
-    $fechaBaseCronologia = new DateTime('2025-03-01');
-    
-    // Fecha de inicio para esta ruta específica
-    $fechaInicioRuta = new DateTime($fechaInicio);
-    
-    // Calcular la diferencia en días entre la fecha base y la fecha de inicio
-    $diferenciaDias = $fechaInicioRuta->diff($fechaBaseCronologia)->days;
-    
-    // Si la fecha de inicio es anterior a la fecha base, ajustar
-    if ($fechaInicioRuta < $fechaBaseCronologia) {
-        $diferenciaDias = -$diferenciaDias;
+    switch ($grupoInicial) {
+        case 1: // Si empezamos en Martes/Miércoles
+            $estadoGrupos[1] = true;  // Martes/Miércoles = Trabajo
+            $estadoGrupos[2] = false; // Jueves/Viernes = Descanso
+            $estadoGrupos[3] = true;  // Sábado/Domingo/Lunes = Trabajo
+            break;
+        case 2: // Si empezamos en Jueves/Viernes
+            $estadoGrupos[1] = true;  // Martes/Miércoles = Trabajo
+            $estadoGrupos[2] = true;  // Jueves/Viernes = Trabajo
+            $estadoGrupos[3] = false; // Sábado/Domingo/Lunes = Descanso
+            break;
+        case 3: // Si empezamos en Sábado/Domingo/Lunes
+            $estadoGrupos[1] = false; // Martes/Miércoles = Descanso
+            $estadoGrupos[2] = true;  // Jueves/Viernes = Trabajo
+            $estadoGrupos[3] = true;  // Sábado/Domingo/Lunes = Trabajo
+            break;
     }
     
-    // Ajustar el índice de inicio en la cronología base
-    $indiceInicio = $diferenciaDias % count($cronologiaBase);
-    if ($indiceInicio < 0) {
-        $indiceInicio += count($cronologiaBase);
-    }
+    // Contador para días de descanso consecutivos (excluyendo domingos)
+    $contadorDescanso = 0;
+    
+    // Generar calendario para 2 años (730 días)
+    $diasGenerados = 0;
+    $semana = 0;
+    
+    // Variable para controlar si ya pasamos la fecha de inicio del refuerzo
+    $refuerzoIniciado = false;
     
     // Preparar la consulta de inserción
     $insertQuery = "INSERT INTO dias_trabajo (ruta_id, fecha, tipo, contador_ciclo) VALUES (?, ?, ?, ?)";
     $insertStmt = mysqli_prepare($conn, $insertQuery);
     
-    // Fecha actual para la generación del calendario
-    $fechaActual = clone $fechaInicioRuta;
-    
-    // Fecha de inicio de refuerzo
-    $fechaRefuerzo = new DateTime($fechaInicioRefuerzo);
-    
-    // Generar calendario para 365 días
-    $diasGenerados = 0;
-    
-    while ($diasGenerados < 365) {
-        // Obtener el índice correspondiente en la cronología base
-        $indiceActual = ($indiceInicio + $diasGenerados) % count($cronologiaBase);
+    while ($diasGenerados < 730) {
+        $diaSemanaActual = (int)$fechaActual->format('N'); // 1-7 (lunes-domingo)
+        $fechaStr = $fechaActual->format('Y-m-d');
         
-        // Obtener el tipo y contador de la cronología
-        $tipo = $cronologiaBase[$indiceActual][3];
-        $contador = $cronologiaBase[$indiceActual][4];
-        
-        // Manejar domingos (no se cuenta en la numeración)
-        $diaSemana = (int)$fechaActual->format('w'); // 0 (domingo) a 6 (sábado)
-        if ($diaSemana === 0) { // Domingo
-            $contador = 0; // Los domingos no se cuentan en la numeración
+        // Determinar a qué grupo pertenece el día actual
+        $grupoActual = 0;
+        if ($diaSemanaActual == 2 || $diaSemanaActual == 3) {
+            $grupoActual = 1; // Martes o Miércoles
+        } else if ($diaSemanaActual == 4 || $diaSemanaActual == 5) {
+            $grupoActual = 2; // Jueves o Viernes
+        } else {
+            $grupoActual = 3; // Sábado, Domingo o Lunes
         }
         
-        // Ajustar refuerzos antes de la fecha de inicio de refuerzo
-        if ($fechaActual < $fechaRefuerzo && $tipo === 'Refuerzo') {
+        // Determinar si es día de trabajo o descanso según el estado del grupo
+        $esTrabajo = $estadoGrupos[$grupoActual];
+        
+        // Caso especial: si es exactamente la fecha de inicio de refuerzo, marcar como refuerzo
+        if ($fechaActual->format('Y-m-d') === $fechaRefuerzo->format('Y-m-d')) {
+            $tipo = 'Refuerzo';
+            $contador = 5;
+            $refuerzoIniciado = true; // Iniciar conteo para próximos días de descanso
+            $contadorDescanso = 0; // Reiniciar contador para comenzar desde 1 en el siguiente día de descanso
+        } 
+        else if ($esTrabajo) {
             $tipo = 'Trabajo';
             $contador = 0;
+        } 
+        else {
+            // Es día de descanso
+            // Solo incrementamos el contador si ya iniciamos los refuerzos y NO es domingo
+            if ($refuerzoIniciado && $diaSemanaActual != 7) { // 7 = domingo
+                $contadorDescanso++;
+                
+                // Si llegamos al 5to día de descanso (excluyendo domingos), es día de refuerzo
+                if ($contadorDescanso == 5) {
+                    $tipo = 'Refuerzo';
+                    $contador = 5;
+                    $contadorDescanso = 0; // Reiniciamos el contador
+                } else {
+                    $tipo = 'Descanso';
+                    $contador = $contadorDescanso;
+                }
+            } else {
+                $tipo = 'Descanso';
+                $contador = 0; // Antes de la fecha de inicio de refuerzo, no contamos los días
+            }
         }
-        
-        $fechaStr = $fechaActual->format('Y-m-d');
         
         // Insertar en la base de datos
         mysqli_stmt_bind_param($insertStmt, "issi", $rutaId, $fechaStr, $tipo, $contador);
+        
         if (!mysqli_stmt_execute($insertStmt)) {
-            error_log("Error insertando día: " . mysqli_error($conn));
+            echo "Error al insertar día " . $fechaStr . ": " . mysqli_error($conn);
+            return false;
         }
         
         // Avanzar al siguiente día
         $fechaActual->modify('+1 day');
         $diasGenerados++;
+        
+        // Si completamos una semana (múltiplo de 7 días), invertimos los estados
+        if ($diasGenerados % 7 == 0) {
+            $semana++;
+            // Cada semana alternamos los estados de todos los grupos
+            $estadoGrupos[1] = !$estadoGrupos[1];
+            $estadoGrupos[2] = !$estadoGrupos[2];
+            $estadoGrupos[3] = !$estadoGrupos[3];
+        }
     }
     
     mysqli_stmt_close($insertStmt);
@@ -201,7 +220,7 @@ function obtenerCalendarioTrabajo($rutaId, $mes = null, $anio = null) {
 function registrarIngreso($diaId, $monto, $estadoEntrega, $observaciones) {
     global $conn;
     
-    // Verificar que el día existe
+    // Verificar que el día existe y es día de trabajo o refuerzo
     $query = "SELECT tipo FROM dias_trabajo WHERE id = ?";
     $stmt = mysqli_prepare($conn, $query);
     mysqli_stmt_bind_param($stmt, "i", $diaId);
@@ -209,23 +228,14 @@ function registrarIngreso($diaId, $monto, $estadoEntrega, $observaciones) {
     $result = mysqli_stmt_get_result($stmt);
     
     if ($row = mysqli_fetch_assoc($result)) {
-        // Si es día de descanso, no permitir registrar ingreso
         if ($row['tipo'] == 'Descanso') {
             return [false, "No se puede registrar ingreso en un día de descanso"];
         }
         
-        // Para días de trabajo o refuerzo
-        if (empty($monto) && !empty($observaciones)) {
-            // Si solo hay observaciones sin monto
-            $updateQuery = "UPDATE dias_trabajo SET monto = NULL, estado_entrega = NULL, observaciones = ? WHERE id = ?";
-            $updateStmt = mysqli_prepare($conn, $updateQuery);
-            mysqli_stmt_bind_param($updateStmt, "si", $observaciones, $diaId);
-        } else {
-            // Si hay monto y estado
-            $updateQuery = "UPDATE dias_trabajo SET monto = ?, estado_entrega = ?, observaciones = ? WHERE id = ?";
-            $updateStmt = mysqli_prepare($conn, $updateQuery);
-            mysqli_stmt_bind_param($updateStmt, "dssi", $monto, $estadoEntrega, $observaciones, $diaId);
-        }
+        // Actualizar el registro
+        $updateQuery = "UPDATE dias_trabajo SET monto = ?, estado_entrega = ?, observaciones = ? WHERE id = ?";
+        $updateStmt = mysqli_prepare($conn, $updateQuery);
+        mysqli_stmt_bind_param($updateStmt, "dssi", $monto, $estadoEntrega, $observaciones, $diaId);
         
         if (mysqli_stmt_execute($updateStmt)) {
             return [true, "Ingreso registrado correctamente"];
@@ -256,4 +266,3 @@ function generarBackup() {
     
     return json_encode($backup);
 }
-?>
