@@ -145,3 +145,19 @@ body {
         font-size: 12px;
     }
 }
+
+/* Estilos forzados para el calendario - con mayor especificidad */
+table .calendar-day.day-trabajo {
+    background-color: #28a745 !important; /* Verde más intenso */
+    color: white;
+}
+
+table .calendar-day.day-descanso {
+    background-color: #dc3545 !important; /* Rojo más intenso */
+    color: white;
+}
+
+table .calendar-day.day-refuerzo {
+    background-color: #ffc107 !important; /* Amarillo más intenso */
+    color: black;
+}

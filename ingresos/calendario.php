@@ -328,13 +328,17 @@ foreach ($diasTrabajo as $dia) {
                                 if (isset($diasPorFecha[$dia])) {
                                     $diaTrabajo = $diasPorFecha[$dia];
                                     
-                                    // Determinar clase según tipo de día
+                                    // Determinar clase y estilo según tipo de día
+                                    $estiloFondo = "";
                                     if ($diaTrabajo['tipo'] == 'Trabajo') {
                                         $claseDia = "day-trabajo";
+                                        $estiloFondo = "style='background-color: #28a745; color: white;'";
                                     } elseif ($diaTrabajo['tipo'] == 'Descanso') {
                                         $claseDia = "day-descanso";
+                                        $estiloFondo = "style='background-color: #dc3545; color: white;'";
                                     } elseif ($diaTrabajo['tipo'] == 'Refuerzo') {
                                         $claseDia = "day-refuerzo";
+                                        $estiloFondo = "style='background-color: #ffc107; color: black;'";
                                     }
                                     
                                     // Agregar clase adicional según estado de entrega
@@ -369,7 +373,7 @@ foreach ($diasTrabajo as $dia) {
                                     }
                                 }
                                 
-                                echo "<td class='calendar-day $claseDia'>$contenidoDia</td>";
+                                echo "<td class='calendar-day $claseDia' $estiloFondo>$contenidoDia</td>";
                                 
                                 $diaColumna = ($diaColumna + 1) % 7;
                             }
