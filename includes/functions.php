@@ -49,12 +49,12 @@ function generarCalendarioTrabajo($rutaId, $fechaInicio, $fechaInicioRefuerzo) {
     // Ciclo de trabajo (0-basado para facilitar cálculos)
     $cicloTrabajo = [
         // [tipo, contador_ciclo]
-        ['Trabajo', null],  // 0 - Trabajo regular
-        ['Descanso', 1],    // 1 - Descanso 1
-        ['Descanso', 2],    // 2 - Descanso 2
-        ['Descanso', 3],    // 3 - Descanso 3
-        ['Descanso', 4],    // 4 - Descanso 4
-        ['Refuerzo', 5],    // 5 - Refuerzo (Descanso 5)
+        ['Trabajo', 0],   // 0 - Trabajo regular (cambiado null por 0)
+        ['Descanso', 1],  // 1 - Descanso 1
+        ['Descanso', 2],  // 2 - Descanso 2
+        ['Descanso', 3],  // 3 - Descanso 3
+        ['Descanso', 4],  // 4 - Descanso 4
+        ['Refuerzo', 5],  // 5 - Refuerzo (Descanso 5)
     ];
     
     // Determinar posición inicial en el ciclo (para fechaInicio)
@@ -87,7 +87,7 @@ function generarCalendarioTrabajo($rutaId, $fechaInicio, $fechaInicioRefuerzo) {
                 // Si la fecha actual es anterior a la fecha de inicio de refuerzo, lo tratamos como día normal de trabajo
                 if ($fechaActual < $fechaRefuerzo) {
                     $tipo = 'Trabajo';
-                    $contador = null;
+                    $contador = 0; // Cambiado null por 0
                 }
             }
             
@@ -96,11 +96,19 @@ function generarCalendarioTrabajo($rutaId, $fechaInicio, $fechaInicioRefuerzo) {
         } else {
             // Para domingos - siempre es día de trabajo pero no se cuenta en el ciclo
             $tipo = 'Trabajo';
-            $contador = null; // No se cuenta en el ciclo
+            $contador = 0; // Cambiado null por 0
         }
         
+        // Asegurar que $contador nunca sea NULL
+        if ($contador === null) {
+            $contador = 0;
+        }
+        
+        // Crear una variable temporal para la fecha formateada
+        $fechaFormateada = $fechaActual->format('Y-m-d');
+        
         // Insertar en la base de datos
-        mysqli_stmt_bind_param($insertStmt, "issi", $rutaId, $fechaActual->format('Y-m-d'), $tipo, $contador);
+        mysqli_stmt_bind_param($insertStmt, "issi", $rutaId, $fechaFormateada, $tipo, $contador);
         mysqli_stmt_execute($insertStmt);
         
         // Avanzar al siguiente día
@@ -196,3 +204,4 @@ function generarBackup() {
     
     return json_encode($backup);
 }
+?>
