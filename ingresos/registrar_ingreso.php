@@ -336,24 +336,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <?php endif; ?>
 </div>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const montoInput = document.getElementById('monto');
-        const estadoSelect = document.getElementById('estado_entrega');
-        
-        // Verificar al cargar la página
-        checkMonto();
-        
-        // Verificar cuando cambia el campo monto
-        montoInput.addEventListener('input', checkMonto);
-        
-        function checkMonto() {
-            if (parseFloat(montoInput.value) > 0) {
-                estadoSelect.setAttribute('required', 'required');
-            } else {
-                estadoSelect.removeAttribute('required');
-            }
+document.addEventListener('DOMContentLoaded', function() {
+    const montoInput = document.getElementById('monto');
+    const estadoSelect = document.getElementById('estado_entrega');
+    
+    function checkMonto() {
+        if (montoInput.value && parseFloat(montoInput.value) > 0) {
+            estadoSelect.setAttribute('required', 'required');
+        } else {
+            estadoSelect.removeAttribute('required');
         }
-    });
+    }
+    
+    // Verificar al cargar
+    checkMonto();
+    
+    // Verificar cuando cambia el monto
+    montoInput.addEventListener('input', checkMonto);
+});
 </script>
 
 <!-- Bootstrap JS -->
