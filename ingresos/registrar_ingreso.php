@@ -70,30 +70,30 @@ if ($diaId == 0) {
         exit;
     }
     
-    // Procesar el formulario de registro de ingreso
-    if ($_SERVER["REQUEST_METHOD"] == "POST") {
-        $monto = isset($_POST['monto']) ? floatval($_POST['monto']) : 0;
-        $estado = sanitize($_POST['estado_entrega']);
-        $observaciones = sanitize($_POST['observaciones']);
+  // Procesar el formulario de registro de ingreso
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $monto = isset($_POST['monto']) ? floatval($_POST['monto']) : 0;
+    $estado = sanitize($_POST['estado_entrega']);
+    $observaciones = sanitize($_POST['observaciones']);
+    
+    // Validar campos
+    if ($monto <= 0 && empty($observaciones)) {
+        $error = "Debe ingresar un monto o una observación";
+    } elseif ($monto > 0 && empty($estado)) {
+        $error = "Debe seleccionar un estado de entrega";
+    } else {
+        // Registrar el ingreso o la observación
+        list($success, $message) = registrarIngreso($diaId, $monto, $estado, $observaciones);
         
-        // Validar campos
-        if ($monto <= 0) {
-            $error = "El monto debe ser mayor que cero";
-        } elseif (empty($estado)) {
-            $error = "Debe seleccionar un estado de entrega";
+        if ($success) {
+            showAlert($message, "success");
+            header("Location: calendario.php?ruta=" . $row['ruta_id']);
+            exit;
         } else {
-            // Registrar el ingreso
-            list($success, $message) = registrarIngreso($diaId, $monto, $estado, $observaciones);
-            
-            if ($success) {
-                showAlert($message, "success");
-                header("Location: calendario.php?ruta=" . $row['ruta_id']);
-                exit;
-            } else {
-                $error = $message;
-            }
+            $error = $message;
         }
     }
+}
 }
 ?>
 
@@ -303,17 +303,17 @@ if ($diaId == 0) {
                     </div>
                     
                     <div class="col-md-6 mb-3">
-                        <label for="estado_entrega" class="form-label">Estado <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-check-circle"></i></span>
-                            <select class="form-select" id="estado_entrega" name="estado_entrega" required>
-                                <option value="">Seleccione un estado</option>
-                                <option value="Pendiente" <?php echo ($row['estado_entrega'] == 'Pendiente') ? 'selected' : ''; ?>>Pendiente</option>
-                                <option value="Recibido" <?php echo ($row['estado_entrega'] == 'Recibido') ? 'selected' : ''; ?>>Recibido</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+    <label for="estado_entrega" class="form-label">Estado</label>
+    <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-check-circle"></i></span>
+        <select class="form-select" id="estado_entrega" name="estado_entrega">
+            <option value="">Seleccione un estado</option>
+            <option value="Pendiente" <?php echo ($row['estado_entrega'] == 'Pendiente') ? 'selected' : ''; ?>>Pendiente</option>
+            <option value="Recibido" <?php echo ($row['estado_entrega'] == 'Recibido') ? 'selected' : ''; ?>>Recibido</option>
+        </select>
+    </div>
+    <small class="form-text text-muted">Requerido solo si ingresa un monto</small>
+</div>
                 
                 <div class="mb-3">
                     <label for="observaciones" class="form-label">Observaciones</label>
@@ -333,6 +333,26 @@ if ($diaId == 0) {
     </div>
     <?php endif; ?>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const montoInput = document.getElementById('monto');
+        const estadoSelect = document.getElementById('estado_entrega');
+        
+        // Verificar al cargar la página
+        checkMonto();
+        
+        // Verificar cuando cambia el campo monto
+        montoInput.addEventListener('input', checkMonto);
+        
+        function checkMonto() {
+            if (parseFloat(montoInput.value) > 0) {
+                estadoSelect.setAttribute('required', 'required');
+            } else {
+                estadoSelect.removeAttribute('required');
+            }
+        }
+    });
+</script>
 
 <!-- Bootstrap JS -->
 <script src="<?php echo $baseUrl; ?>assets/js/bootstrap.bundle.min.js"></script>
