@@ -308,6 +308,9 @@ foreach ($diasTrabajo as $dia) {
                     <tbody>
                         <tr>
                             <?php
+                            // Inicializar variable estiloFondo antes de usarla
+                            $estiloFondo = "";
+                            
                             // Celdas vacías hasta el día de inicio
                             for ($i = 0; $i < $diaSemanaInicio; $i++) {
                                 echo '<td class="calendar-day"></td>';
@@ -323,13 +326,13 @@ foreach ($diasTrabajo as $dia) {
                                 
                                 // Determinar si hay información para este día
                                 $claseDia = "";
+                                $estiloFondo = ""; // Reiniciar $estiloFondo para cada día
                                 $contenidoDia = "<div class='calendar-day-header'>$dia</div>";
                                 
                                 if (isset($diasPorFecha[$dia])) {
                                     $diaTrabajo = $diasPorFecha[$dia];
                                     
                                     // Determinar clase y estilo según tipo de día
-                                    $estiloFondo = "";
                                     if ($diaTrabajo['tipo'] == 'Trabajo') {
                                         $claseDia = "day-trabajo";
                                         $estiloFondo = "style='background-color: #28a745; color: white;'";
@@ -377,6 +380,9 @@ foreach ($diasTrabajo as $dia) {
                                 
                                 $diaColumna = ($diaColumna + 1) % 7;
                             }
+                            
+                            // Reiniciar $estiloFondo para las celdas vacías al final
+                            $estiloFondo = "";
                             
                             // Completar la última fila con celdas vacías si es necesario
                             while ($diaColumna > 0 && $diaColumna < 7) {
