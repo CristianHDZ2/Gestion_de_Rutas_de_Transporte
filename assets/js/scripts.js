@@ -37,14 +37,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Confirmación para eliminación
-    var deleteButtons = document.querySelectorAll('.btn-delete');
-    deleteButtons.forEach(function(button) {
-        button.addEventListener('click', function(e) {
-            if (!confirm('¿Está seguro que desea eliminar este registro? Esta acción no se puede deshacer.')) {
-                e.preventDefault();
-            }
-        });
+var deleteButtons = document.querySelectorAll('.btn-delete:not(.custom-confirm)');
+deleteButtons.forEach(function(button) {
+    button.addEventListener('click', function(e) {
+        if (!confirm('¿Está seguro que desea eliminar este registro? Esta acción no se puede deshacer.')) {
+            e.preventDefault();
+        }
     });
+});
     
     // Manejo del formulario de ingresos
     var ingresoForm = document.getElementById('ingresoForm');

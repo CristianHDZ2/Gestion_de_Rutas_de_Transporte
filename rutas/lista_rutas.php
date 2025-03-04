@@ -7,6 +7,35 @@ require_once "../includes/functions.php";
 // Ruta relativa para los archivos
 $baseUrl = "../";
 
+// Procesar la activación/desactivación de ruta
+if (isset($_GET['toggle']) && is_numeric($_GET['toggle'])) {
+    $id = $_GET['toggle'];
+    
+    // Obtener el estado actual de la ruta
+    $queryEstado = "SELECT estado FROM rutas WHERE id = ?";
+    $stmtEstado = mysqli_prepare($conn, $queryEstado);
+    mysqli_stmt_bind_param($stmtEstado, "i", $id);
+    mysqli_stmt_execute($stmtEstado);
+    $resultEstado = mysqli_stmt_get_result($stmtEstado);
+    $rowEstado = mysqli_fetch_assoc($resultEstado);
+    
+    if ($rowEstado) {
+        // Cambiar el estado (activar/desactivar)
+        $nuevoEstado = ($rowEstado['estado'] == 'Activa') ? 'Inactiva' : 'Activa';
+        $queryToggle = "UPDATE rutas SET estado = ? WHERE id = ?";
+        $stmtToggle = mysqli_prepare($conn, $queryToggle);
+        mysqli_stmt_bind_param($stmtToggle, "si", $nuevoEstado, $id);
+        
+        if (mysqli_stmt_execute($stmtToggle)) {
+            $mensaje = ($nuevoEstado == 'Activa') ? "La ruta ha sido activada correctamente" : "La ruta ha sido desactivada correctamente";
+            $tipo = ($nuevoEstado == 'Activa') ? "success" : "warning";
+            showAlert($mensaje, $tipo);
+        } else {
+            showAlert("Error al cambiar el estado de la ruta: " . mysqli_error($conn), "danger");
+        }
+    }
+}
+
 // Procesar la eliminación de ruta
 if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
     $id = $_GET['delete'];
@@ -19,33 +48,31 @@ if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
     $checkResult = mysqli_stmt_get_result($checkStmt);
     $checkRow = mysqli_fetch_assoc($checkResult);
     
-    if ($checkRow['count'] > 0) {
-        // Si hay registros, solo inactivar
-        $queryInactivar = "UPDATE rutas SET estado = 'Inactiva' WHERE id = ?";
-        $stmtInactivar = mysqli_prepare($conn, $queryInactivar);
-        mysqli_stmt_bind_param($stmtInactivar, "i", $id);
-        
-        if (mysqli_stmt_execute($stmtInactivar)) {
-            showAlert("La ruta ha sido inactivada correctamente", "warning");
-        } else {
-            showAlert("Error al inactivar la ruta: " . mysqli_error($conn), "danger");
-        }
+    // Forzar eliminación si se pasa el parámetro force=1
+    $forzarEliminacion = isset($_GET['force']) && $_GET['force'] == 1;
+    
+    if ($checkRow['count'] > 0 && !$forzarEliminacion) {
+        // Si hay registros y no se fuerza la eliminación, mostrar alerta con opción para forzar
+        showAlert("Esta ruta tiene registros de ingresos asociados. Si realmente desea eliminarla, <a href='lista_rutas.php?delete=" . $id . "&force=1' class='alert-link'>haga clic aquí</a> para forzar la eliminación.", "warning");
     } else {
-        // Si no hay registros, eliminar
-        $queryEliminar = "DELETE FROM rutas WHERE id = ?";
-        $stmtEliminar = mysqli_prepare($conn, $queryEliminar);
-        mysqli_stmt_bind_param($stmtEliminar, "i", $id);
+        // Primero eliminar los días de trabajo asociados
+        $queryDias = "DELETE FROM dias_trabajo WHERE ruta_id = ?";
+        $stmtDias = mysqli_prepare($conn, $queryDias);
+        mysqli_stmt_bind_param($stmtDias, "i", $id);
         
-        if (mysqli_stmt_execute($stmtEliminar)) {
-            // Eliminar también los días de trabajo asociados
-            $queryDias = "DELETE FROM dias_trabajo WHERE ruta_id = ?";
-            $stmtDias = mysqli_prepare($conn, $queryDias);
-            mysqli_stmt_bind_param($stmtDias, "i", $id);
-            mysqli_stmt_execute($stmtDias);
+        if (mysqli_stmt_execute($stmtDias)) {
+            // Ahora sí eliminamos la ruta
+            $queryEliminar = "DELETE FROM rutas WHERE id = ?";
+            $stmtEliminar = mysqli_prepare($conn, $queryEliminar);
+            mysqli_stmt_bind_param($stmtEliminar, "i", $id);
             
-            showAlert("La ruta ha sido eliminada correctamente", "success");
+            if (mysqli_stmt_execute($stmtEliminar)) {
+                showAlert("La ruta ha sido eliminada correctamente", "success");
+            } else {
+                showAlert("Error al eliminar la ruta: " . mysqli_error($conn), "danger");
+            }
         } else {
-            showAlert("Error al eliminar la ruta: " . mysqli_error($conn), "danger");
+            showAlert("Error al eliminar los días de trabajo asociados: " . mysqli_error($conn), "danger");
         }
     }
 }
@@ -188,7 +215,7 @@ $result = mysqli_query($conn, $query);
                             <th>Motorista</th>
                             <th>Fecha Inicio</th>
                             <th>Estado</th>
-                            <th width="150">Acciones</th>
+                            <th width="200">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -214,7 +241,10 @@ $result = mysqli_query($conn, $query);
                                     <a href="<?php echo $baseUrl; ?>ingresos/calendario.php?ruta=<?php echo $row['id']; ?>" class="btn btn-sm btn-info text-white" data-bs-toggle="tooltip" title="Ver calendario">
                                         <i class="bi bi-calendar-week"></i>
                                     </a>
-                                    <a href="lista_rutas.php?delete=<?php echo $row['id']; ?>" class="btn btn-sm btn-danger btn-delete" data-bs-toggle="tooltip" title="Eliminar">
+                                    <a href="lista_rutas.php?toggle=<?php echo $row['id']; ?>" class="btn btn-sm <?php echo ($row['estado'] == 'Activa') ? 'btn-warning' : 'btn-success'; ?>" data-bs-toggle="tooltip" title="<?php echo ($row['estado'] == 'Activa') ? 'Desactivar' : 'Activar'; ?>">
+                                        <i class="bi <?php echo ($row['estado'] == 'Activa') ? 'bi-toggle-on' : 'bi-toggle-off'; ?>"></i>
+                                    </a>
+                                    <a href="#" onclick="confirmarEliminacion(<?php echo $row['id']; ?>)" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" title="Eliminar">
                                         <i class="bi bi-trash"></i>
                                     </a>
                                 </div>
@@ -234,9 +264,46 @@ $result = mysqli_query($conn, $query);
     </div>
 </div>
 
+<!-- Modal de Confirmación -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="confirmDeleteModalLabel">Confirmar Eliminación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>¿Está seguro que desea eliminar esta ruta? Esta acción eliminará permanentemente la ruta y todos sus registros asociados.</p>
+        <p class="text-danger"><strong>Advertencia:</strong> Esta acción no se puede deshacer.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <a href="#" id="btnConfirmDelete" class="btn btn-danger">Eliminar Definitivamente</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Bootstrap JS -->
 <script src="<?php echo $baseUrl; ?>assets/js/bootstrap.bundle.min.js"></script>
 <!-- Scripts personalizados -->
 <script src="<?php echo $baseUrl; ?>assets/js/scripts.js"></script>
+<script>
+// Script para confirmación de eliminación
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+// Función para mostrar el modal de confirmación
+function confirmarEliminacion(id) {
+    var modal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+    document.getElementById('btnConfirmDelete').href = 'lista_rutas.php?delete=' + id + '&force=1';
+    modal.show();
+}
+</script>
 </body>
 </html>
