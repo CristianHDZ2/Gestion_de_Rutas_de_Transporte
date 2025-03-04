@@ -359,11 +359,18 @@ foreach ($diasTrabajo as $dia) {
                                     }
                                     $contenidoDia .= "</div>";
                                     
-                                    // Agregar monto y estado si existe
-                                    if ($diaTrabajo['monto']) {
-                                        $contenidoDia .= "<div class='day-amount'>$" . number_format($diaTrabajo['monto'], 2) . "</div>";
-                                        $contenidoDia .= "<div class='badge " . ($diaTrabajo['estado_entrega'] == 'Recibido' ? 'bg-success' : 'bg-warning text-dark') . " mt-1'>" . $diaTrabajo['estado_entrega'] . "</div>";
-                                    }
+                                    // Agregar monto, combustible y estado si existe
+                                        if ($diaTrabajo['monto'] || $diaTrabajo['combustible']) {
+                                                if ($diaTrabajo['monto']) {
+                                                    $contenidoDia .= "<div class='day-amount'>$" . number_format($diaTrabajo['monto'], 2) . "</div>";
+                                                }
+                                                if ($diaTrabajo['combustible']) {
+                                                    $contenidoDia .= "<div class='day-fuel'>$" . number_format($diaTrabajo['combustible'], 2) . "</div>";
+                                                }
+                                                if ($diaTrabajo['estado_entrega']) {
+                                                    $contenidoDia .= "<div class='badge " . ($diaTrabajo['estado_entrega'] == 'Recibido' ? 'bg-success' : 'bg-warning text-dark') . " mt-1'>" . $diaTrabajo['estado_entrega'] . "</div>";
+                                                }
+                                            }
                                     
                                     // Agregar enlace para registrar ingreso
                                     if ($diaTrabajo['tipo'] != 'Descanso') {

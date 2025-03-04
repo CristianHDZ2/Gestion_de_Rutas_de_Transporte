@@ -14,6 +14,20 @@ $motoristaId = isset($_GET['motorista']) ? intval($_GET['motorista']) : 0;
 $desde = isset($_GET['desde']) ? sanitize($_GET['desde']) : date('Y-m-01'); // Primer día del mes actual
 $hasta = isset($_GET['hasta']) ? sanitize($_GET['hasta']) : date('Y-m-t'); // Último día del mes actual
 
+// Función para obtener el nombre del día en español
+function obtenerNombreDia($fecha) {
+    $dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    $numeroDia = date('w', strtotime($fecha));
+    return $dias[$numeroDia];
+}
+
+// Función para obtener el nombre del mes en español
+function obtenerNombreMes($fecha) {
+    $meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    $numeroMes = date('n', strtotime($fecha)) - 1;
+    return $meses[$numeroMes];
+}
+
 // Obtener las rutas, vehículos y motoristas para los filtros
 $queryRutas = "SELECT id, numero, origen, destino FROM rutas ORDER BY numero ASC";
 $resultRutas = mysqli_query($conn, $queryRutas);
@@ -25,7 +39,7 @@ $queryMotoristas = "SELECT id, nombre, apellido FROM motoristas ORDER BY nombre,
 $resultMotoristas = mysqli_query($conn, $queryMotoristas);
 
 // Construir la consulta para obtener los días recibidos
-$query = "SELECT dt.id, dt.fecha, dt.tipo, dt.monto, dt.observaciones, 
+$query = "SELECT dt.id, dt.fecha, dt.tipo, dt.monto, dt.combustible, dt.observaciones, dt.estado_entrega,
                  r.numero as ruta_numero, r.origen, r.destino, 
                  v.placa, CONCAT(m.nombre, ' ', m.apellido) as motorista
           FROM dias_trabajo dt
@@ -56,7 +70,7 @@ if ($motoristaId > 0) {
     $types .= "i";
 }
 
-$query .= " ORDER BY dt.fecha DESC";
+$query .= " ORDER BY dt.fecha ASC";
 
 // Ejecutar la consulta
 $stmt = mysqli_prepare($conn, $query);
@@ -64,17 +78,54 @@ mysqli_stmt_bind_param($stmt, $types, ...$params);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 
-// Calcular el total recibido
+// Calcular el total recibido y total de combustible
 $totalRecibido = 0;
+$totalCombustible = 0;
 $dias = [];
 while ($row = mysqli_fetch_assoc($result)) {
     $totalRecibido += $row['monto'];
+    $totalCombustible += $row['combustible'] ?? 0;
     $dias[] = $row;
 }
 
 // Volver a ejecutar la consulta para recorrer los resultados
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
+
+// Obtener información de filtros para mostrar en el encabezado de impresión
+$infoRuta = "";
+$infoVehiculo = "";
+$infoMotorista = "";
+
+if ($rutaId > 0) {
+    mysqli_data_seek($resultRutas, 0);
+    while ($ruta = mysqli_fetch_assoc($resultRutas)) {
+        if ($ruta['id'] == $rutaId) {
+            $infoRuta = "Ruta: " . $ruta['numero'] . " - " . $ruta['origen'] . " a " . $ruta['destino'];
+            break;
+        }
+    }
+}
+
+if ($vehiculoId > 0) {
+    mysqli_data_seek($resultVehiculos, 0);
+    while ($vehiculo = mysqli_fetch_assoc($resultVehiculos)) {
+        if ($vehiculo['id'] == $vehiculoId) {
+            $infoVehiculo = "Vehículo: " . $vehiculo['placa'];
+            break;
+        }
+    }
+}
+
+if ($motoristaId > 0) {
+    mysqli_data_seek($resultMotoristas, 0);
+    while ($motorista = mysqli_fetch_assoc($resultMotoristas)) {
+        if ($motorista['id'] == $motoristaId) {
+            $infoMotorista = "Motorista: " . $motorista['nombre'] . " " . $motorista['apellido'];
+            break;
+        }
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -89,6 +140,35 @@ $result = mysqli_stmt_get_result($stmt);
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <!-- Estilos personalizados -->
     <link rel="stylesheet" href="<?php echo $baseUrl; ?>assets/css/styles.css">
+    <style>
+        @media print {
+            .print-compact {
+                font-size: 12px;
+            }
+            .print-compact th, .print-compact td {
+                padding: 4px 8px;
+            }
+            .print-header {
+                margin-bottom: 10px;
+            }
+            .print-header h1 {
+                font-size: 18px;
+                margin-bottom: 5px;
+            }
+            .print-header h2 {
+                font-size: 16px;
+                margin-bottom: 5px;
+            }
+            .print-header p {
+                font-size: 12px;
+                margin-bottom: 2px;
+            }
+            .print-footer {
+                margin-top: 10px;
+                font-size: 10px;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -180,11 +260,20 @@ $result = mysqli_stmt_get_result($stmt);
         <p class="text-center">
             Período: <?php echo date('d/m/Y', strtotime($desde)); ?> al <?php echo date('d/m/Y', strtotime($hasta)); ?>
         </p>
+        <?php if (!empty($infoRuta)): ?>
+            <p class="text-center"><?php echo $infoRuta; ?></p>
+        <?php endif; ?>
+        <?php if (!empty($infoVehiculo)): ?>
+            <p class="text-center"><?php echo $infoVehiculo; ?></p>
+        <?php endif; ?>
+        <?php if (!empty($infoMotorista)): ?>
+            <p class="text-center"><?php echo $infoMotorista; ?></p>
+        <?php endif; ?>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="no-print"><i class="bi bi-cash-coin"></i> <?php echo $pageTitle; ?></h1>
-        <div class="no-print">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <h1><i class="bi bi-cash-coin"></i> <?php echo $pageTitle; ?></h1>
+        <div>
             <button type="button" id="printReport" class="btn btn-primary">
                 <i class="bi bi-printer"></i> Imprimir Reporte
             </button>
@@ -253,14 +342,14 @@ $result = mysqli_stmt_get_result($stmt);
         </div>
     </div>
 
-    <!-- Resumen del reporte -->
-    <div class="card mb-4">
+    <!-- Resumen del reporte (solo visible en pantalla, no al imprimir) -->
+    <div class="card mb-4 no-print">
         <div class="card-header bg-success text-white">
             <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Resumen del Reporte</h5>
         </div>
         <div class="card-body">
             <div class="row">
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
                     <div class="card border-success">
                         <div class="card-body text-center">
                             <h6 class="card-title">Total Recibido</h6>
@@ -268,7 +357,15 @@ $result = mysqli_stmt_get_result($stmt);
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">Total Combustible</h6>
+                            <h3 class="card-text">$<?php echo number_format($totalCombustible, 2); ?></h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
                     <div class="card border-primary">
                         <div class="card-body text-center">
                             <h6 class="card-title">Días Registrados</h6>
@@ -276,7 +373,7 @@ $result = mysqli_stmt_get_result($stmt);
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
                     <div class="card border-info">
                         <div class="card-body text-center">
                             <h6 class="card-title">Promedio por Día</h6>
@@ -288,22 +385,23 @@ $result = mysqli_stmt_get_result($stmt);
         </div>
     </div>
 
-    <!-- Tabla de días recibidos -->
+    <!-- Tabla de días recibidos (Esta se ve tanto en pantalla como al imprimir) -->
     <div class="card">
-        <div class="card-header bg-primary text-white">
+        <div class="card-header bg-primary text-white no-print">
             <h5 class="mb-0"><i class="bi bi-table"></i> Detalle de Días Recibidos</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover table-bordered print-compact">
                     <thead class="table-light">
                         <tr>
                             <th>Fecha</th>
                             <th>Ruta</th>
                             <th>Vehículo</th>
-                            <th>Motorista</th>
                             <th>Tipo</th>
                             <th class="text-end">Monto</th>
+                            <th class="text-end">Combustible</th>
+                            <th>Estado</th>
                             <th>Observaciones</th>
                         </tr>
                     </thead>
@@ -311,10 +409,15 @@ $result = mysqli_stmt_get_result($stmt);
                         <?php if (mysqli_num_rows($result) > 0): ?>
                             <?php while ($row = mysqli_fetch_assoc($result)): ?>
                                 <tr>
-                                    <td><?php echo date('d/m/Y', strtotime($row['fecha'])); ?></td>
-                                    <td><?php echo htmlspecialchars($row['ruta_numero'] . ' - ' . $row['origen']); ?></td>
+                                    <td><?php 
+                                        $fechaObj = strtotime($row['fecha']);
+                                        $nombreDia = obtenerNombreDia($row['fecha']);
+                                        $dia = date('d', $fechaObj);
+                                        $nombreMes = obtenerNombreMes($row['fecha']);
+                                        echo $nombreDia . '/' . $dia . '/' . $nombreMes;
+                                    ?></td>
+                                    <td><?php echo htmlspecialchars($row['ruta_numero']); ?></td>
                                     <td><?php echo htmlspecialchars($row['placa']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['motorista']); ?></td>
                                     <td>
                                         <?php if ($row['tipo'] == 'Trabajo'): ?>
                                             <span class="badge bg-success">Trabajo</span>
@@ -322,18 +425,21 @@ $result = mysqli_stmt_get_result($stmt);
                                             <span class="badge bg-warning text-dark">Refuerzo</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="text-end">$<?php echo number_format($row['monto'], 2); ?></td>
-                                    <td><?php echo htmlspecialchars($row['observaciones'] ?? ''); ?></td>
+                                    <td class="text-end">$<?php echo $row['monto'] ? number_format($row['monto'], 2) : '-'; ?></td>
+                                    <td class="text-end">$<?php echo $row['combustible'] ? number_format($row['combustible'], 2) : '-'; ?></td>
+                                    <td><span class="badge bg-success">Recibido</span></td>
+                                    <td><?php echo !empty($row['observaciones']) ? htmlspecialchars($row['observaciones']) : '-'; ?></td>
                                 </tr>
                             <?php endwhile; ?>
                             <tr class="table-success">
-                                <td colspan="5" class="fw-bold text-end">Total:</td>
+                                <td colspan="4" class="fw-bold text-end">Totales:</td>
                                 <td class="fw-bold text-end">$<?php echo number_format($totalRecibido, 2); ?></td>
-                                <td></td>
+                                <td class="fw-bold text-end">$<?php echo number_format($totalCombustible, 2); ?></td>
+                                <td colspan="2"></td>
                             </tr>
                         <?php else: ?>
                             <tr>
-                                <td colspan="7" class="text-center">No hay días recibidos en el período seleccionado</td>
+                                <td colspan="8" class="text-center">No hay días recibidos en el período seleccionado</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
@@ -353,5 +459,11 @@ $result = mysqli_stmt_get_result($stmt);
 <script src="<?php echo $baseUrl; ?>assets/js/bootstrap.bundle.min.js"></script>
 <!-- Scripts personalizados -->
 <script src="<?php echo $baseUrl; ?>assets/js/scripts.js"></script>
+
+<script>
+    document.getElementById('printReport').addEventListener('click', function() {
+        window.print();
+    });
+</script>
 </body>
 </html>

@@ -146,6 +146,15 @@ body {
     }
 }
 
+.day-fuel {
+    position: absolute;
+    bottom: 25px;
+    right: 5px;
+    font-weight: 700;
+    font-size: 0.85em;
+    color: #198754;
+}
+
 /* Estilos forzados para el calendario - con mayor especificidad */
 table .calendar-day.day-trabajo {
     background-color: #28a745 !important; /* Verde más intenso */

@@ -217,7 +217,7 @@ function obtenerCalendarioTrabajo($rutaId, $mes = null, $anio = null) {
 }
 
 // Función para registrar ingreso en un día específico
-function registrarIngreso($diaId, $monto, $estadoEntrega, $observaciones) {
+function registrarIngreso($diaId, $monto, $estadoEntrega, $observaciones, $combustible = null) {
     global $conn;
     
     // Verificar que el día existe y es día de trabajo o refuerzo
@@ -233,9 +233,9 @@ function registrarIngreso($diaId, $monto, $estadoEntrega, $observaciones) {
         }
         
         // Actualizar el registro
-        $updateQuery = "UPDATE dias_trabajo SET monto = ?, estado_entrega = ?, observaciones = ? WHERE id = ?";
+        $updateQuery = "UPDATE dias_trabajo SET monto = ?, estado_entrega = ?, observaciones = ?, combustible = ? WHERE id = ?";
         $updateStmt = mysqli_prepare($conn, $updateQuery);
-        mysqli_stmt_bind_param($updateStmt, "dssi", $monto, $estadoEntrega, $observaciones, $diaId);
+        mysqli_stmt_bind_param($updateStmt, "dssdi", $monto, $estadoEntrega, $observaciones, $combustible, $diaId);
         
         if (mysqli_stmt_execute($updateStmt)) {
             return [true, "Ingreso registrado correctamente"];
@@ -300,123 +300,101 @@ function regenerarCalendarioTrabajo($rutaId, $nuevaFechaInicioRefuerzo) {
     mysqli_stmt_execute($stmtDias);
     $resultDias = mysqli_stmt_get_result($stmtDias);
     
-    // Eliminar todos los días futuros para regenerarlos
-    $queryEliminar = "DELETE FROM dias_trabajo WHERE ruta_id = ? AND fecha >= ?";
-    $stmtEliminar = mysqli_prepare($conn, $queryEliminar);
-    mysqli_stmt_bind_param($stmtEliminar, "is", $rutaId, $fechaStr);
-    
-    if (!mysqli_stmt_execute($stmtEliminar)) {
-        return false;
+    // Obtener todos los días posteriores a la fecha de corte
+    $diasFuturos = [];
+    while ($row = mysqli_fetch_assoc($resultDias)) {
+        $diasFuturos[] = $row;
     }
     
-    // Inicializar variables para el nuevo patrón
-    $fechaActual = clone $fechaRefuerzo;
+    // El cambio clave - No eliminar todos los días futuros, sino simplemente actualizar el patrón de refuerzo
+    // manteniendo intactos los días de trabajo y descanso
     
-    // Encontrar el último día antes de la fecha de corte para mantener la secuencia
-    $queryUltimo = "SELECT * FROM dias_trabajo WHERE ruta_id = ? AND fecha < ? ORDER BY fecha DESC LIMIT 1";
-    $stmtUltimo = mysqli_prepare($conn, $queryUltimo);
-    mysqli_stmt_bind_param($stmtUltimo, "is", $rutaId, $fechaStr);
-    mysqli_stmt_execute($stmtUltimo);
-    $resultUltimo = mysqli_stmt_get_result($stmtUltimo);
-    $ultimoDia = mysqli_fetch_assoc($resultUltimo);
+    // Primero, obtener el contador de descanso actual
+    $queryContador = "SELECT MAX(contador_ciclo) as max_contador 
+                     FROM dias_trabajo 
+                     WHERE ruta_id = ? AND tipo = 'Descanso' AND fecha < ?";
+    $stmtContador = mysqli_prepare($conn, $queryContador);
+    mysqli_stmt_bind_param($stmtContador, "is", $rutaId, $fechaStr);
+    mysqli_stmt_execute($stmtContador);
+    $resultContador = mysqli_stmt_get_result($stmtContador);
+    $rowContador = mysqli_fetch_assoc($resultContador);
+    $contadorDescanso = ($rowContador['max_contador']) ? $rowContador['max_contador'] : 0;
     
-    // Determinar el estado actual de los grupos y el contador de descanso
-    // Esto es complejo y depende de cómo está implementada la lógica original
-    $contadorDescanso = 0;
-    $refuerzoIniciado = true; // Siempre iniciamos con refuerzo activo
+    // Iniciar una transacción
+    mysqli_begin_transaction($conn);
     
-    // Determinar los estados de los grupos basándonos en el patrón existente
-    // Esto requiere analizar los días anteriores para saber en qué parte del ciclo estamos
-    $estadoGrupos = determinarEstadoGrupos($rutaId, $fechaStr);
-    
-    // Preparar la consulta de inserción
-    $insertQuery = "INSERT INTO dias_trabajo (ruta_id, fecha, tipo, contador_ciclo) VALUES (?, ?, ?, ?)";
-    $insertStmt = mysqli_prepare($conn, $insertQuery);
-    
-    // Generar calendario para 2 años desde la fecha actual
-    $diasGenerados = 0;
-    $semana = 0;
-    $ultimoDiaStr = null;
-    
-    while ($diasGenerados < 730) {
-        $diaSemanaActual = (int)$fechaActual->format('N'); // 1-7 (lunes-domingo)
-        $fechaActualStr = $fechaActual->format('Y-m-d');
-        
-        // Saltar si ya existe (por seguridad)
-        if ($fechaActualStr == $ultimoDiaStr) {
-            $fechaActual->modify('+1 day');
-            continue;
-        }
-        
-        $ultimoDiaStr = $fechaActualStr;
-        
-        // Determinar a qué grupo pertenece el día actual
-        $grupoActual = 0;
-        if ($diaSemanaActual == 2 || $diaSemanaActual == 3) {
-            $grupoActual = 1; // Martes o Miércoles
-        } else if ($diaSemanaActual == 4 || $diaSemanaActual == 5) {
-            $grupoActual = 2; // Jueves o Viernes
-        } else {
-            $grupoActual = 3; // Sábado, Domingo o Lunes
-        }
-        
-        // Determinar si es día de trabajo o descanso según el estado del grupo
-        $esTrabajo = $estadoGrupos[$grupoActual];
-        
-        // Caso especial: si es exactamente la fecha de inicio de refuerzo, marcar como refuerzo
-        if ($fechaActual->format('Y-m-d') === $fechaRefuerzo->format('Y-m-d')) {
-            $tipo = 'Refuerzo';
-            $contador = 5;
-            $contadorDescanso = 0; // Reiniciar contador para comenzar desde 1 en el siguiente día de descanso
-        } 
-        else if ($esTrabajo) {
-            $tipo = 'Trabajo';
-            $contador = 0;
-        } 
-        else {
-            // Es día de descanso
-            // Solo incrementamos el contador si NO es domingo
-            if ($diaSemanaActual != 7) { // 7 = domingo
-                $contadorDescanso++;
+    try {
+        // Para cada día futuro, actualizar solo el contador y tipo (si es refuerzo)
+        foreach ($diasFuturos as $dia) {
+            $diaFecha = new DateTime($dia['fecha']);
+            $diaSemana = (int)$diaFecha->format('N'); // 1-7 (lunes-domingo)
+            
+            // Si el día actual es exactamente la fecha de inicio de refuerzo, marcarlo como refuerzo
+            if ($diaFecha->format('Y-m-d') === $fechaRefuerzo->format('Y-m-d')) {
+                $tipo = 'Refuerzo';
+                $contador = 5;
+                $contadorDescanso = 0; // Reiniciar contador para próximos días
                 
-                // Si llegamos al 5to día de descanso (excluyendo domingos), es día de refuerzo
-                if ($contadorDescanso == 5) {
-                    $tipo = 'Refuerzo';
-                    $contador = 5;
-                    $contadorDescanso = 0; // Reiniciamos el contador
-                } else {
-                    $tipo = 'Descanso';
-                    $contador = $contadorDescanso;
+                // Actualizar este día específico
+                $updateQuery = "UPDATE dias_trabajo SET tipo = ?, contador_ciclo = ? WHERE id = ?";
+                $updateStmt = mysqli_prepare($conn, $updateQuery);
+                mysqli_stmt_bind_param($updateStmt, "sii", $tipo, $contador, $dia['id']);
+                
+                if (!mysqli_stmt_execute($updateStmt)) {
+                    throw new Exception("Error al actualizar día de refuerzo: " . mysqli_error($conn));
                 }
-            } else {
-                $tipo = 'Descanso';
-                $contador = 0; // Los domingos no cuentan para el contador
+            } 
+            // Si es un día de trabajo, mantenerlo igual
+            elseif ($dia['tipo'] == 'Trabajo') {
+                continue; // No hacemos cambios
+            }
+            // Si es un día de descanso o ya era refuerzo, recalcular su contador
+            else {
+                // Ignorar domingos en el conteo
+                if ($diaSemana != 7) { // 7 = domingo
+                    // Si era refuerzo y ahora debe ser descanso
+                    if ($dia['tipo'] == 'Refuerzo' && $diaFecha->format('Y-m-d') !== $fechaRefuerzo->format('Y-m-d')) {
+                        $contadorDescanso++; // Incrementar para que sea el siguiente descanso
+                        $tipo = 'Descanso';
+                        $contador = $contadorDescanso;
+                    } 
+                    // Si era descanso y debe seguir siéndolo
+                    elseif ($dia['tipo'] == 'Descanso') {
+                        $contadorDescanso++;
+                        
+                        // Si llegamos al 5to día de descanso y no es el nuevo día de refuerzo, ponerlo como refuerzo
+                        if ($contadorDescanso == 5 && $diaFecha->format('Y-m-d') !== $fechaRefuerzo->format('Y-m-d')) {
+                            $tipo = 'Refuerzo';
+                            $contador = 5;
+                            $contadorDescanso = 0; // Reiniciar contador para próximos días
+                        } else {
+                            $tipo = 'Descanso';
+                            $contador = $contadorDescanso;
+                        }
+                    }
+                    
+                    // Actualizar este día si ha cambiado
+                    if ($tipo != $dia['tipo'] || $contador != $dia['contador_ciclo']) {
+                        $updateQuery = "UPDATE dias_trabajo SET tipo = ?, contador_ciclo = ? WHERE id = ?";
+                        $updateStmt = mysqli_prepare($conn, $updateQuery);
+                        mysqli_stmt_bind_param($updateStmt, "sii", $tipo, $contador, $dia['id']);
+                        
+                        if (!mysqli_stmt_execute($updateStmt)) {
+                            throw new Exception("Error al actualizar día: " . mysqli_error($conn));
+                        }
+                    }
+                }
             }
         }
         
-        // Insertar en la base de datos
-        mysqli_stmt_bind_param($insertStmt, "issi", $rutaId, $fechaActualStr, $tipo, $contador);
-        
-        if (!mysqli_stmt_execute($insertStmt)) {
-            return false;
-        }
-        
-        // Avanzar al siguiente día
-        $fechaActual->modify('+1 day');
-        $diasGenerados++;
-        
-        // Si completamos una semana (múltiplo de 7 días), invertimos los estados
-        if ($diasGenerados % 7 == 0) {
-            $semana++;
-            // Cada semana alternamos los estados de todos los grupos
-            $estadoGrupos[1] = !$estadoGrupos[1];
-            $estadoGrupos[2] = !$estadoGrupos[2];
-            $estadoGrupos[3] = !$estadoGrupos[3];
-        }
+        // Confirmar los cambios
+        mysqli_commit($conn);
+        return true;
+    } catch (Exception $e) {
+        // Revertir cambios en caso de error
+        mysqli_rollback($conn);
+        return false;
     }
-    
-    mysqli_stmt_close($insertStmt);
-    return true;
 }
 
 // Función auxiliar para determinar el estado actual de los grupos
