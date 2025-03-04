@@ -90,7 +90,8 @@ if ($current_page != 'index.php') {
                             <i class="bi bi-person-circle"></i> <?php echo $_SESSION['user_name'] ?? 'Usuario'; ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="includes/backup.php"><i class="bi bi-download"></i> Copia de seguridad</a></li>
+                            <li><a class="dropdown-item" href="<?php echo $baseUrl; ?>includes/backup.php"><i class="bi bi-download"></i> Copia de seguridad</a></li>
+                            <li><a class="dropdown-item" href="<?php echo $baseUrl; ?>includes/restore_backup.php"><i class="bi bi-upload"></i> Restaurar copia</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <a class="dropdown-item" href="<?php echo dirname($_SERVER['PHP_SELF']) == '/' ? '' : dirname($_SERVER['PHP_SELF']); ?>/force_logout.php"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
                         </ul>
