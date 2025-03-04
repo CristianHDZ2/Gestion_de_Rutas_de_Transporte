@@ -25,6 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $vehiculo_id = sanitize($_POST['vehiculo_id']);
     $motorista_id = sanitize($_POST['motorista_id']);
     $estado = sanitize($_POST['estado']);
+    $fecha_inicio_refuerzo = sanitize($_POST['fecha_inicio_refuerzo']);
     
     // Validar campos
     $errors = [];
@@ -49,14 +50,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $errors[] = "Debe seleccionar un motorista";
     }
     
+    if (empty($fecha_inicio_refuerzo)) {
+        $errors[] = "La fecha de inicio de refuerzo es obligatoria";
+    }
+    
     // Si no hay errores, actualizar la ruta
     if (empty($errors)) {
-        $query = "UPDATE rutas SET numero = ?, origen = ?, destino = ?, vehiculo_id = ?, motorista_id = ?, estado = ? WHERE id = ?";
+        // Obtener la fecha de inicio de refuerzo actual
+        $queryFecha = "SELECT fecha_inicio_refuerzo FROM rutas WHERE id = ?";
+        $stmtFecha = mysqli_prepare($conn, $queryFecha);
+        mysqli_stmt_bind_param($stmtFecha, "i", $id);
+        mysqli_stmt_execute($stmtFecha);
+        $resultFecha = mysqli_stmt_get_result($stmtFecha);
+        $rowFecha = mysqli_fetch_assoc($resultFecha);
+        $fechaRefuerzoAnterior = $rowFecha['fecha_inicio_refuerzo'];
+        
+        // Actualizar la información de la ruta
+        $query = "UPDATE rutas SET numero = ?, origen = ?, destino = ?, vehiculo_id = ?, motorista_id = ?, estado = ?, fecha_inicio_refuerzo = ? WHERE id = ?";
         $stmt = mysqli_prepare($conn, $query);
-        mysqli_stmt_bind_param($stmt, "ssssssi", $numero, $origen, $destino, $vehiculo_id, $motorista_id, $estado, $id);
+        mysqli_stmt_bind_param($stmt, "sssssssi", $numero, $origen, $destino, $vehiculo_id, $motorista_id, $estado, $fecha_inicio_refuerzo, $id);
         
         if (mysqli_stmt_execute($stmt)) {
-            showAlert("Ruta actualizada correctamente", "success");
+            // Verificar si la fecha de inicio de refuerzo ha cambiado
+            if ($fechaRefuerzoAnterior != $fecha_inicio_refuerzo) {
+                // Regenerar el calendario de trabajo a partir de la nueva fecha
+                $resultado = regenerarCalendarioTrabajo($id, $fecha_inicio_refuerzo);
+                
+                if ($resultado) {
+                    showAlert("Ruta y calendario actualizados correctamente", "success");
+                } else {
+                    showAlert("Ruta actualizada, pero hubo problemas al actualizar el calendario", "warning");
+                }
+            } else {
+                showAlert("Ruta actualizada correctamente", "success");
+            }
+            
             header("Location: lista_rutas.php");
             exit;
         } else {
@@ -292,18 +320,18 @@ $resultMotoristas = mysqli_stmt_get_result($stmtMotoristas);
                     </div>
                     
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Fecha de Inicio de Refuerzo</label>
+                        <label for="fecha_inicio_refuerzo" class="form-label">Fecha de Inicio de Refuerzo <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-calendar-plus"></i></span>
-                            <input type="date" class="form-control" value="<?php echo htmlspecialchars($ruta['fecha_inicio_refuerzo']); ?>" disabled>
+                            <input type="date" class="form-control" id="fecha_inicio_refuerzo" name="fecha_inicio_refuerzo" value="<?php echo htmlspecialchars($ruta['fecha_inicio_refuerzo']); ?>" required>
                         </div>
-                        <div class="form-text">La fecha de inicio de refuerzo no se puede modificar</div>
+                        <div class="form-text">Esta fecha determina cuándo inician los días de refuerzo. Al cambiarla, solo se afectarán los días futuros.</div>
                     </div>
                 </div>
                 
                 <div class="mb-3">
                     <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> Nota: No se puede modificar las fechas de inicio ni el calendario generado. Si necesita cambiar el ciclo de trabajo, debe crear una nueva ruta.
+                        <i class="bi bi-info-circle"></i> Nota: Si modifica la fecha de inicio de refuerzo, se actualizará el calendario a partir de esa fecha. Los días de trabajo pasados no se modificarán.
                     </div>
                 </div>
                 
