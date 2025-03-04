@@ -92,7 +92,7 @@ if ($current_page != 'index.php') {
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="includes/backup.php"><i class="bi bi-download"></i> Copia de seguridad</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <a class="dropdown-item" href="<?php echo $baseUrl; ?>force_logout.php"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
+                            <a class="dropdown-item" href="<?php echo dirname($_SERVER['PHP_SELF']) == '/' ? '' : dirname($_SERVER['PHP_SELF']); ?>/force_logout.php"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
                         </ul>
                     </li>
                 </ul>
