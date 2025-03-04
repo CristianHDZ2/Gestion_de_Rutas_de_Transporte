@@ -1,6 +1,15 @@
 <?php
 $pageTitle = "Dashboard";
 require_once 'includes/header.php';
+$pageTitle = "Dashboard";
+// Verificar sesión antes de cualquier otra cosa
+require_once 'includes/config.php';
+
+// Redirigir si no hay sesión
+if (!isLoggedIn()) {
+    header("Location: index.php");
+    exit;
+}
 
 // Consultar estadísticas
 // Total de rutas

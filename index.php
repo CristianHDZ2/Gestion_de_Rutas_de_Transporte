@@ -10,9 +10,30 @@ if (isLoggedIn()) {
 
 // Procesar logout
 if (isset($_GET['logout'])) {
+    // Destruir todas las variables de sesión
+    $_SESSION = array();
+    
+    // Si se desea destruir completamente la sesión, borra también la cookie de sesión
+    if (ini_get("session.use_cookies")) {
+        $params = session_get_cookie_params();
+        setcookie(session_name(), '', time() - 42000,
+            $params["path"], $params["domain"],
+            $params["secure"], $params["httponly"]
+        );
+    }
+    
+    // Finalmente, destruir la sesión
     session_destroy();
-    header("Location: index.php");
+    
+    // Redirigir a la página de inicio con un mensaje
+    header("Location: index.php?loggedout=1");
     exit;
+}
+
+// Mostrar mensaje de cierre de sesión exitoso
+$logoutMessage = '';
+if (isset($_GET['loggedout'])) {
+    $logoutMessage = "Has cerrado sesión correctamente.";
 }
 
 // Procesar formulario de login
@@ -40,7 +61,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['user_name'] = $row['nombre'] . ' ' . $row['apellido'];
                 $_SESSION['user_role'] = $row['rol'];
                 
-                // Redireccionar al dashboard
+                // Redirigir al dashboard
                 header("Location: inicio.php");
                 exit;
             } else {
@@ -75,6 +96,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <?php if (isset($error) && !empty($error)): ?>
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <?php echo $error; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <?php endif; ?>
+        
+        <?php if (!empty($logoutMessage)): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <?php echo $logoutMessage; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         <?php endif; ?>

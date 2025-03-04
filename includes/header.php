@@ -26,7 +26,7 @@ if ($current_page != 'index.php') {
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid">
-            <a class="navbar-brand" href="dashboard.php">
+            <a class="navbar-brand" href="inicio.php">
                 <i class="bi bi-bus-front"></i> Sistema de Transporte
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -35,7 +35,7 @@ if ($current_page != 'index.php') {
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="dashboard.php"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                        <a class="nav-link" href="inicio.php"><i class="bi bi-speedometer2"></i> Dashboard</a>
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -92,7 +92,7 @@ if ($current_page != 'index.php') {
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="includes/backup.php"><i class="bi bi-download"></i> Copia de seguridad</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="index.php?logout=1"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a></li>
+                            <a class="dropdown-item" href="<?php echo $baseUrl; ?>force_logout.php"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
                         </ul>
                     </li>
                 </ul>
