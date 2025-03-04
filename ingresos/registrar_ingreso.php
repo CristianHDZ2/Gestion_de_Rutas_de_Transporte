@@ -356,9 +356,9 @@ document.addEventListener('DOMContentLoaded', function() {
     montoInput.addEventListener('input', checkMonto);
 });
 </script>
-
 <!-- Bootstrap JS -->
 <script src="<?php echo $baseUrl; ?>assets/js/bootstrap.bundle.min.js"></script>
+
 <!-- Scripts personalizados -->
 <script src="<?php echo $baseUrl; ?>assets/js/scripts.js"></script>
 </body>

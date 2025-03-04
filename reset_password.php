@@ -14,7 +14,7 @@ if (!$conn) {
 }
 
 // La nueva contraseña será "admin123"
-$newPassword = "admin123";
+$newPassword = "Lh01136078";
 $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
 
 // Actualizar la contraseña del administrador
